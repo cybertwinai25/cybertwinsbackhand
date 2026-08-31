@@ -1,11 +1,18 @@
-﻿from dotenv import load_dotenv
+from dotenv import load_dotenv
 load_dotenv()
-
-from fastapi import FastAPI
+import os
+from fastapi import FastAPI, Depends, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, risk, advisor
 
-app = FastAPI(title="Cybertwin Backend Stub")
+def verify_api_key(x_app_key: str = Header(None)):
+    expected_key = os.environ.get("APP_SECRET_KEY")
+    if not expected_key:
+        raise HTTPException(status_code=500, detail="Server configuration error: APP_SECRET_KEY is not set")
+    if not x_app_key or x_app_key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+app = FastAPI(title="Cybertwin Backend Stub", dependencies=[Depends(verify_api_key)])
 
 app.add_middleware(
     CORSMiddleware,
