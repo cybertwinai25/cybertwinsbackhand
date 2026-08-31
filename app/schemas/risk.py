@@ -2,5 +2,5 @@ from pydantic import BaseModel
 from typing import Dict, Any
 
 class RiskScoreResponse(BaseModel):
-    score: int
-    breakdown: Dict[str, Any]
+    risk_score: int
+    risk_breakdown: Dict[str, Any]
