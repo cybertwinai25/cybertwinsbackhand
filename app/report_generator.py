@@ -1,5 +1,6 @@
 import io
 import os
+import time
 import datetime
 from google import genai
 from reportlab.lib.pagesizes import letter
@@ -13,25 +14,33 @@ def generate_ai_summary(risk_score: int, breakdown: dict) -> str:
     if not api_key:
         return "AI Summary unavailable: API key not configured."
         
-    try:
-        client = genai.Client(api_key=api_key)
-        
-        prompt = f"""
-        You are a cybersecurity assistant. Based on this user's risk score, write a concise 2-3 sentence summary of their security posture.
-        Keep it professional and focused on the key issues.
-        
-        Overall Score: {risk_score}/100 (100 is best)
-        Penalties Breakdown (negative numbers are bad):
-        {breakdown}
-        """
-        
-        response = client.models.generate_content(
-            model='gemini-3.5-flash',
-            contents=prompt
-        )
-        return response.text.strip()
-    except Exception as e:
-        return f"Error generating summary: {str(e)}"
+    client = genai.Client(api_key=api_key)
+    
+    prompt = f"""
+    You are a cybersecurity assistant. Based on this user's risk score, write a concise 2-3 sentence summary of their security posture.
+    Keep it professional and focused on the key issues.
+    
+    Overall Score: {risk_score}/100 (100 is best)
+    Penalties Breakdown (negative numbers are bad):
+    {breakdown}
+    """
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model='gemini-3.5-flash',
+                contents=prompt
+            )
+            return response.text.strip()
+        except Exception as e:
+            if "503" in str(e) or "UNAVAILABLE" in str(e):
+                if attempt < max_retries - 1:
+                    time.sleep(3 * (attempt + 1))  # 3s, then 6s
+                    continue
+            return "AI summary temporarily unavailable. Your score and breakdown above are accurate and unaffected."
+
+    return "AI summary temporarily unavailable. Your score and breakdown above are accurate and unaffected."
 
 def generate_report_pdf(email: str, risk_score: int, risk_breakdown: dict) -> bytes:
     buffer = io.BytesIO()
@@ -44,14 +53,17 @@ def generate_report_pdf(email: str, risk_score: int, risk_breakdown: dict) -> by
     
     elements = []
     
+    # Title
     elements.append(Paragraph("Cyber Twin AI Security Report", title_style))
     elements.append(Spacer(1, 12))
     
+    # User and Timestamp
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     elements.append(Paragraph(f"<b>User:</b> {email}", normal_style))
     elements.append(Paragraph(f"<b>Generated:</b> {timestamp}", normal_style))
     elements.append(Spacer(1, 24))
     
+    # Score
     score_style = ParagraphStyle(
         'ScoreStyle', 
         parent=styles['Heading1'],
@@ -61,6 +73,7 @@ def generate_report_pdf(email: str, risk_score: int, risk_breakdown: dict) -> by
     elements.append(Paragraph(f"Overall Risk Score: {risk_score}/100", score_style))
     elements.append(Spacer(1, 24))
     
+    # Breakdown Table
     elements.append(Paragraph("Score Breakdown", heading_style))
     elements.append(Spacer(1, 12))
     
@@ -88,6 +101,7 @@ def generate_report_pdf(email: str, risk_score: int, risk_breakdown: dict) -> by
     elements.append(table)
     elements.append(Spacer(1, 24))
     
+    # AI Summary
     elements.append(Paragraph("AI Security Summary", heading_style))
     elements.append(Spacer(1, 12))
     ai_summary = generate_ai_summary(risk_score, risk_breakdown)
