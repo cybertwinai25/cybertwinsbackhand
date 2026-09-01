@@ -3,3 +3,4 @@ uvicorn
 pydantic
 google-genai
 python-dotenv==1.0.0
+reportlab==4.1.0
