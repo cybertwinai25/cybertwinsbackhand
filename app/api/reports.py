@@ -6,7 +6,7 @@ from app.report_generator import generate_report_pdf
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 @router.post("/generate")
-async def generate_report(request: RiskScoreRequest):
+def generate_report(request: RiskScoreRequest):
     risk_data = calculate_risk_score(request.email, request.device_info)
     
     pdf_bytes = generate_report_pdf(
