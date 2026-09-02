@@ -1,4 +1,5 @@
 import os
+import time
 from google import genai
 from fastapi import APIRouter, HTTPException
 from app.schemas.chat import ChatRequest, ChatResponse
@@ -15,8 +16,8 @@ client = genai.Client(api_key=api_key)
 MODEL_NAME = os.environ.get("GEMINI_MODEL_NAME", "gemini-3.5-flash")
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    risk_data = calculate_risk_score(request.email)
+def chat(request: ChatRequest):
+    risk_data = calculate_risk_score(request.email, getattr(request, "device_info", None))
     risk_score = risk_data["total_score"]
     risk_breakdown = risk_data["breakdown"]
     
@@ -32,15 +33,29 @@ async def chat(request: ChatRequest):
         user_message=request.message,
     )
 
-    try:
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Gemini request failed: {e}")
+    max_retries = 3
+    response_text = None
+    
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+            )
+            response_text = response.text
+            break
+        except Exception as e:
+            if "503" in str(e) or "UNAVAILABLE" in str(e):
+                if attempt < max_retries - 1:
+                    time.sleep(3 * (attempt + 1))
+                    continue
+            return ChatResponse(
+                reply="I'm having trouble connecting right now, please try again in a moment.",
+                risk_score=risk_score,
+                risk_breakdown=risk_breakdown
+            )
 
-    reply_text = response.text if response and response.text else "I am sorry, I couldn't process that."
+    reply_text = response_text if response_text else "I am sorry, I couldn't process that."
     return ChatResponse(
         reply=reply_text,
         risk_score=risk_score,
