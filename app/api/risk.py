@@ -6,7 +6,7 @@ router = APIRouter(prefix="/risk", tags=["risk"])
 
 @router.post("/score", response_model=RiskScoreResponse)
 def get_risk_score(request: RiskScoreRequest):
-    risk_data = calculate_risk_score(request.email, request.device_info)
+    risk_data = calculate_risk_score(request.email, request.device_info, request.password_compromised)
 
     return RiskScoreResponse(
         risk_score=risk_data["total_score"],
