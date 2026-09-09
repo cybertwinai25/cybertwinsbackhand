@@ -2,9 +2,9 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional
 
 class DeviceSecurityInput(BaseModel):
-    is_lock_screen_secure: bool
-    root_detected: bool
-    is_outdated_os: bool
+    is_lock_screen_secure: bool = True
+    root_detected: bool = False
+    is_outdated_os: bool = False
 
 class RiskScoreRequest(BaseModel):
     email: str = "user@example.com"
