@@ -9,6 +9,7 @@ class DeviceSecurityInput(BaseModel):
 class RiskScoreRequest(BaseModel):
     email: str = "user@example.com"
     device_info: Optional[DeviceSecurityInput] = None
+    password_compromised: Optional[bool] = None
 
 class RiskScoreResponse(BaseModel):
     risk_score: int
